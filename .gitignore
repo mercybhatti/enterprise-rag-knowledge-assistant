@@ -48,3 +48,9 @@ Thumbs.db
 
 # Project temporary files
 tempCodeRunnerFile.py
+
+# Knowledge base documents
+data/*.pdf
+
+# Generated vector store
+data/vector_store/
