@@ -2,7 +2,10 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 
 from app.agents.tools import search_documents
-from app.agents.gemini_agent import run_agent
+from app.agents.gemini_agent import (
+    run_agent,
+    GeminiQuotaError
+)
 from app.services.document_service import upload_and_index_document
 
 
@@ -198,6 +201,20 @@ def chat(request: ChatRequest):
             answer=answer,
             sources=sources
         )
+
+    # --------------------------------------------------------
+    # Gemini free-tier quota / rate-limit error
+    # --------------------------------------------------------
+
+    except GeminiQuotaError as error:
+        raise HTTPException(
+            status_code=429,
+            detail=str(error)
+        )
+
+    # --------------------------------------------------------
+    # Unexpected error
+    # --------------------------------------------------------
 
     except Exception as error:
         raise HTTPException(

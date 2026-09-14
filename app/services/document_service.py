@@ -44,20 +44,31 @@ def validate_pdf(filename):
 def save_uploaded_pdf(uploaded_file, filename):
     """
     Save an uploaded PDF into the project's data directory.
+
+    Duplicate checking is performed before this function
+    writes the file to disk.
     """
 
     if uploaded_file is None:
-        raise ValueError("No file was provided.")
+        raise ValueError(
+            "No file was provided."
+        )
 
     if not filename:
-        raise ValueError("Filename is required.")
+        raise ValueError(
+            "Filename is required."
+        )
 
     filename = Path(filename).name
 
-    is_valid, message = validate_pdf(filename)
+    is_valid, message = validate_pdf(
+        filename
+    )
 
     if not is_valid:
-        raise ValueError(message)
+        raise ValueError(
+            message
+        )
 
     DATA_DIR.mkdir(
         parents=True,
@@ -146,12 +157,56 @@ def upload_and_index_document(uploaded_file, filename):
     """
     Save an uploaded PDF, index it in FAISS,
     and register it in SQLite.
+
+    Duplicate checking happens before the file is saved.
     """
+
+    if uploaded_file is None:
+        raise ValueError(
+            "No file was provided."
+        )
+
+    if not filename:
+        raise ValueError(
+            "Filename is required."
+        )
+
+    filename = Path(filename).name
+
+    is_valid, message = validate_pdf(
+        filename
+    )
+
+    if not is_valid:
+        raise ValueError(
+            message
+        )
+
+    # --------------------------------------------------------
+    # Check duplicate BEFORE writing to disk
+    # --------------------------------------------------------
+
+    existing_document = get_document_by_filename(
+        filename
+    )
+
+    if existing_document is not None:
+        raise ValueError(
+            "This document is already registered."
+        )
+
+    # --------------------------------------------------------
+    # Save the PDF
+    # --------------------------------------------------------
 
     pdf_path = save_uploaded_pdf(
         uploaded_file,
         filename
     )
+
+    # --------------------------------------------------------
+    # Index and register the document
+    # --------------------------------------------------------
 
     result = index_document(
         pdf_path

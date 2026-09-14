@@ -7,12 +7,66 @@ from app.agents.tools import search_documents
 
 
 # ============================================================
+# CUSTOM GEMINI ERRORS
+# ============================================================
+
+class GeminiQuotaError(Exception):
+    """
+    Raised when Gemini's API quota or rate limit
+    has been reached.
+    """
+    pass
+
+
+# ============================================================
 # GEMINI CLIENT
 # ============================================================
 
 client = genai.Client(
     api_key=GEMINI_API_KEY
 )
+
+
+# ============================================================
+# GEMINI ERROR HANDLING
+# ============================================================
+
+def is_quota_error(error):
+    """
+    Check whether an exception represents a Gemini
+    quota or rate-limit error.
+    """
+
+    error_message = str(error).lower()
+
+    quota_indicators = [
+        "429",
+        "quota exceeded",
+        "rate limit",
+        "too many requests",
+        "resource exhausted"
+    ]
+
+    return any(
+        indicator in error_message
+        for indicator in quota_indicators
+    )
+
+
+def raise_gemini_error(error):
+    """
+    Convert Gemini quota/rate-limit errors into
+    a clean application-level exception.
+    """
+
+    if is_quota_error(error):
+        raise GeminiQuotaError(
+            "The AI service is temporarily unavailable "
+            "because the Gemini free-tier quota has been "
+            "reached. Please try again later."
+        ) from error
+
+    raise error
 
 
 # ============================================================
@@ -178,10 +232,14 @@ User question:
 Provide a clear and concise answer.
 """
 
-    fallback_interaction = client.interactions.create(
-        model="gemini-3.8-flash",
-        input=fallback_prompt
-    )
+    try:
+        fallback_interaction = client.interactions.create(
+            model="gemini-3.8-flash",
+            input=fallback_prompt
+        )
+
+    except Exception as error:
+        raise_gemini_error(error)
 
     return validate_agent_output(
         fallback_interaction.output_text
@@ -202,14 +260,18 @@ def run_agent(question):
     # 1. Send the question to Gemini
     # --------------------------------------------------------
 
-    interaction = client.interactions.create(
-        model="gemini-3.8-flash",
-        input=(
-            f"{get_agent_instructions()}\n\n"
-            f"User question:\n{question}"
-        ),
-        tools=[DOCUMENT_SEARCH_TOOL]
-    )
+    try:
+        interaction = client.interactions.create(
+            model="gemini-3.8-flash",
+            input=(
+                f"{get_agent_instructions()}\n\n"
+                f"User question:\n{question}"
+            ),
+            tools=[DOCUMENT_SEARCH_TOOL]
+        )
+
+    except Exception as error:
+        raise_gemini_error(error)
 
     final_interaction = interaction
     retrieved_results = []
@@ -257,19 +319,23 @@ def run_agent(question):
             }
         ]
 
-        final_interaction = client.interactions.create(
-            model="gemini-3.8-flash",
-            previous_interaction_id=interaction.id,
-            input=[
-                {
-                    "type": "function_result",
-                    "name": step.name,
-                    "call_id": step.id,
-                    "result": tool_result
-                }
-            ],
-            tools=[DOCUMENT_SEARCH_TOOL]
-        )
+        try:
+            final_interaction = client.interactions.create(
+                model="gemini-3.8-flash",
+                previous_interaction_id=interaction.id,
+                input=[
+                    {
+                        "type": "function_result",
+                        "name": step.name,
+                        "call_id": step.id,
+                        "result": tool_result
+                    }
+                ],
+                tools=[DOCUMENT_SEARCH_TOOL]
+            )
+
+        except Exception as error:
+            raise_gemini_error(error)
 
     # --------------------------------------------------------
     # 6. Try to use the agent's final response
@@ -285,7 +351,7 @@ def run_agent(question):
     except ValueError:
 
         # ----------------------------------------------------
-        # 7. Fallback if Gemini returned an empty response
+        # 7. Fallback only for an empty response
         # ----------------------------------------------------
 
         if not retrieved_results:

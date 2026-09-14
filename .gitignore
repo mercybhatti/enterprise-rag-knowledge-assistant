@@ -54,3 +54,4 @@ data/*.pdf
 
 # Generated vector store
 data/vector_store/
+data/*.db
