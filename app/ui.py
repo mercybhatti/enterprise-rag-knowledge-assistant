@@ -1,5 +1,11 @@
+import hashlib
+import hmac
+import os
+import time
 import requests
 import streamlit as st
+from dotenv import load_dotenv
+from streamlit_cookies_controller import CookieController
 
 from app.database.database import (
     initialize_database,
@@ -9,6 +15,7 @@ from app.database.database import (
     save_message,
     get_documents,
     delete_conversation,
+    get_user_by_id,
 )
 
 from app.services.auth import (
@@ -35,6 +42,84 @@ st.set_page_config(
 
 API_URL = "http://127.0.0.1:8000"
 
+# ============================================================
+# AUTHENTICATION COOKIE
+# ============================================================
+
+cookie_controller = CookieController()
+AUTH_COOKIE_NAME = "knowledge_ai_session"
+
+# ============================================================
+# AUTHENTICATION SESSION HELPERS
+# ============================================================
+
+load_dotenv()
+SESSION_SECRET = os.getenv("SESSION_SECRET")
+
+
+def create_session_token(user_id):
+    """
+    Create a signed authentication session token.
+    """
+
+    if not SESSION_SECRET:
+        raise RuntimeError(
+            "SESSION_SECRET is not configured."
+        )
+
+    user_id = str(user_id)
+
+    signature = hmac.new(
+        SESSION_SECRET.encode("utf-8"),
+        user_id.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    return f"{user_id}:{signature}"
+
+
+def verify_session_token(token):
+    """
+    Verify the authentication session token.
+
+    Returns the user ID when valid.
+    Returns None when invalid or tampered with.
+    """
+
+    if not SESSION_SECRET:
+        return None
+
+    if not token:
+        return None
+
+    try:
+
+        user_id, signature = token.split(
+            ":",
+            1,
+        )
+
+        expected_signature = hmac.new(
+            SESSION_SECRET.encode("utf-8"),
+            user_id.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        if hmac.compare_digest(
+            signature,
+            expected_signature,
+        ):
+
+            return int(user_id)
+
+    except (
+        ValueError,
+        TypeError,
+    ):
+
+        return None
+
+    return None
 
 # ============================================================
 # DATABASE
@@ -1417,7 +1502,47 @@ div[data-testid="stFileUploader"] button {
 # AUTH PAGE
 # ============================================================
 
+# ============================================================
+# RESTORE AUTHENTICATION FROM COOKIE
+# ============================================================
+
 if not st.session_state.authenticated:
+
+    # Initialize the cookie controller and allow
+    # the browser component to provide existing cookies.
+    cookie_controller.getAll()
+
+    time.sleep(0.3)
+
+    session_token = cookie_controller.get(
+        AUTH_COOKIE_NAME
+    )
+
+    user_id = verify_session_token(
+        session_token
+    )
+
+    if user_id is not None:
+
+        restored_user = get_user_by_id(
+            user_id
+        )
+
+        if restored_user is not None:
+
+            st.session_state.authenticated = True
+
+            st.session_state.user = (
+                restored_user
+            )
+
+            st.session_state.conversation_id = (
+                None
+            )
+
+            st.session_state.messages = []
+
+            st.rerun()
 
     # ========================================================
     # SINGLE OUTER BOX
@@ -1548,6 +1673,17 @@ Sign in to continue to your knowledge workspace.
 
                             if result["success"]:
 
+                                session_token = create_session_token(
+                                    result["user"]["id"]
+                                    )
+
+                                cookie_controller.set(
+                                    AUTH_COOKIE_NAME,
+                                    session_token,
+                                    )
+
+                                time.sleep(0.5)
+
                                 st.session_state.authenticated = True
 
                                 st.session_state.user = (
@@ -1583,20 +1719,7 @@ Sign in to continue to your knowledge workspace.
                         unsafe_allow_html=True,
                     )
 
-                    # ========================================
-                    # GOOGLE
-                    # ========================================
-
-                    if st.button(
-                        "🌐  Continue with Google",
-                        use_container_width=True,
-                        key="google_login",
-                    ):
-
-                        st.info(
-                            "Google OAuth will be connected "
-                            "during the authentication integration step."
-                        )
+                
 
                     # ========================================
                     # CREATE ACCOUNT
@@ -1726,6 +1849,15 @@ user = st.session_state.user
 
 
 # ============================================================
+# DOCUMENTS
+# ============================================================
+
+documents = get_documents()
+
+document_count = len(documents)
+
+
+# ============================================================
 # SIDEBAR
 # ============================================================
 
@@ -1771,28 +1903,26 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    # Get current registered documents
+    # --------------------------------------------------------
+    # KNOWLEDGE BASE CARD
+    # --------------------------------------------------------
 
-    documents = get_documents()
+    with st.container(
+        border=True,
+    ):
 
-    document_count = len(documents)
+        st.markdown(
+            "📚 **Knowledge Base**"
+        )
 
-    st.markdown(
-        f"""
-        <div class="sidebar-info-card">
-            <div class="sidebar-info-title">
-                📚 Knowledge Base
-            </div>
-            <div class="sidebar-info-text">
-                {document_count} document{"s" if document_count != 1 else ""} indexed
-            </div>
-            <div class="sidebar-info-status">
-                ● Ready for questions
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.caption(
+            f"{document_count} document"
+            f"{'s' if document_count != 1 else ''} indexed"
+        )
+
+        st.caption(
+            "● Ready for questions"
+        )
 
     # --------------------------------------------------------
     # DOCUMENT UPLOAD
@@ -1850,10 +1980,12 @@ with st.sidebar:
                     else:
 
                         try:
+
                             error_data = response.json()
+
                             error_message = error_data.get(
                                 "detail",
-                                "Document upload failed."
+                                "Document upload failed.",
                             )
 
                         except ValueError:
@@ -1887,113 +2019,107 @@ with st.sidebar:
                     )
 
     # --------------------------------------------------------
-    # CONVERSATION HISTORY
+    # CONVERSATIONS
     # --------------------------------------------------------
 
-# ============================================================
-# CONVERSATION HISTORY
-# ============================================================
-
-st.markdown(
-    """
-    <div class="sidebar-section-title">
-        CONVERSATIONS
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-conversations = get_user_conversations(
-    user["id"]
-)
-
-if conversations:
-
-    for conversation in conversations:
-
-        conversation_id = conversation["id"]
-
-        title = conversation["title"]
-
-        if len(title) > 28:
-            title = title[:28] + "..."
-
-        # ----------------------------------------------------
-        # Conversation row
-        # ----------------------------------------------------
-
-        conversation_col, delete_col = st.columns(
-            [5, 1],
-            gap="small",
-        )
-
-        # ----------------------------------------------------
-        # Open conversation
-        # ----------------------------------------------------
-
-        with conversation_col:
-
-            if st.button(
-                "○  " + title,
-                key=f"conversation_{conversation_id}",
-                use_container_width=True,
-            ):
-
-                st.session_state.conversation_id = (
-                    conversation_id
-                )
-
-                messages = get_conversation_messages(
-                    conversation_id,
-                    user["id"],
-                )
-
-                st.session_state.messages = [
-                    {
-                        "role": message["role"],
-                        "content": message["content"],
-                    }
-                    for message in messages
-                ]
-
-                st.rerun()
-
-        # ----------------------------------------------------
-        # Delete conversation
-        # ----------------------------------------------------
-
-        with delete_col:
-
-            if st.button(
-                "×",
-                key=f"delete_conversation_{conversation_id}",
-                help="Delete conversation",
-            ):
-
-                delete_conversation(
-                    conversation_id,
-                    user["id"],
-                )
-
-                # If the deleted conversation was active,
-                # clear the current chat state.
-                if (
-                    st.session_state.conversation_id
-                    == conversation_id
-                ):
-
-                    st.session_state.conversation_id = None
-                    st.session_state.messages = []
-
-                st.rerun()
-
-else:
-
-    st.caption(
-        "No conversations yet."
+    st.markdown(
+        """
+        <div class="sidebar-section-title">
+            CONVERSATIONS
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    
+    conversations = get_user_conversations(
+        user["id"]
+    )
+
+    if conversations:
+
+        for conversation in conversations:
+
+            conversation_id = conversation["id"]
+
+            title = conversation["title"]
+
+            if len(title) > 28:
+
+                title = title[:28] + "..."
+
+            # ------------------------------------------------
+            # Conversation row
+            # ------------------------------------------------
+
+            conversation_col, delete_col = st.columns(
+                [5, 1],
+                gap="small",
+            )
+
+            # ------------------------------------------------
+            # Open conversation
+            # ------------------------------------------------
+
+            with conversation_col:
+
+                if st.button(
+                    "○  " + title,
+                    key=f"conversation_{conversation_id}",
+                    use_container_width=True,
+                ):
+
+                    st.session_state.conversation_id = (
+                        conversation_id
+                    )
+
+                    messages = get_conversation_messages(
+                        conversation_id,
+                        user["id"],
+                    )
+
+                    st.session_state.messages = [
+                        {
+                            "role": message["role"],
+                            "content": message["content"],
+                        }
+                        for message in messages
+                    ]
+
+                    st.rerun()
+
+            # ------------------------------------------------
+            # Delete conversation
+            # ------------------------------------------------
+
+            with delete_col:
+
+                if st.button(
+                    "×",
+                    key=f"delete_conversation_{conversation_id}",
+                    help="Delete conversation",
+                ):
+
+                    delete_conversation(
+                        conversation_id,
+                        user["id"],
+                    )
+
+                    if (
+                        st.session_state.conversation_id
+                        == conversation_id
+                    ):
+
+                        st.session_state.conversation_id = None
+                        st.session_state.messages = []
+
+                    st.rerun()
+
+    else:
+
+        st.caption(
+            "No conversations yet."
+        )
+
     # --------------------------------------------------------
     # USER AREA
     # --------------------------------------------------------
@@ -2022,6 +2148,11 @@ else:
         use_container_width=True,
         key="sign_out_button",
     ):
+        cookie_controller.remove(
+            AUTH_COOKIE_NAME
+        )
+
+        time.sleep(0.3)
 
         st.session_state.authenticated = False
         st.session_state.user = None
@@ -2030,7 +2161,7 @@ else:
 
         st.rerun()
 
-
+        
 # ============================================================
 # WORKSPACE HEADER
 # ============================================================
@@ -2074,7 +2205,7 @@ padding-top:5px;
 
 
 # ============================================================
-# EMPTY CHAT
+# EMPTY CHAT / WELCOME STATE
 # ============================================================
 
 if not st.session_state.messages:
@@ -2106,8 +2237,13 @@ with transparent sources.
         unsafe_allow_html=True,
     )
 
+    # --------------------------------------------------------
+    # ACTIVE KNOWLEDGE BASE
+    # --------------------------------------------------------
 
-    with st.container(border=True):
+    with st.container(
+        border=True,
+    ):
 
         active_document = (
             documents[0]
@@ -2215,6 +2351,10 @@ question = st.chat_input(
 
 if question:
 
+    # --------------------------------------------------------
+    # CREATE NEW CONVERSATION
+    # --------------------------------------------------------
+
     if st.session_state.conversation_id is None:
 
         title = question.strip()
@@ -2234,6 +2374,10 @@ if question:
         st.session_state.conversation_id
     )
 
+    # --------------------------------------------------------
+    # SAVE USER MESSAGE
+    # --------------------------------------------------------
+
     save_message(
         conversation_id,
         "user",
@@ -2247,11 +2391,21 @@ if question:
         }
     )
 
-    with st.chat_message("user"):
+    with st.chat_message(
+        "user"
+    ):
 
-        st.markdown(question)
+        st.markdown(
+            question
+        )
 
-    with st.chat_message("assistant"):
+    # --------------------------------------------------------
+    # GET AI RESPONSE
+    # --------------------------------------------------------
+
+    with st.chat_message(
+        "assistant"
+    ):
 
         with st.spinner(
             "Searching your knowledge base..."
@@ -2281,6 +2435,10 @@ if question:
                         [],
                     )
 
+                    # ----------------------------------------
+                    # SAVE ASSISTANT RESPONSE
+                    # ----------------------------------------
+
                     save_message(
                         conversation_id,
                         "assistant",
@@ -2294,7 +2452,13 @@ if question:
                         }
                     )
 
-                    st.markdown(answer)
+                    st.markdown(
+                        answer
+                    )
+
+                    # ----------------------------------------
+                    # RETRIEVED SOURCES
+                    # ----------------------------------------
 
                     if sources:
 

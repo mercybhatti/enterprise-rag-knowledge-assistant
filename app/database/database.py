@@ -234,6 +234,34 @@ def get_user_by_email(email):
     return user
 
 
+def get_user_by_id(user_id):
+    """Return a user by user ID."""
+    connection = get_connection()
+
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            id,
+            name,
+            email,
+            password_hash,
+            created_at
+
+        FROM users
+
+        WHERE id = ?
+        """,
+        (user_id,)
+    )
+
+    user = cursor.fetchone()
+
+    connection.close()
+
+    return user
+
 # ============================================================
 # CONVERSATION OPERATIONS
 # ============================================================
