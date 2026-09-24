@@ -6,9 +6,21 @@ from app.rag.reranker import rerank_documents
 
 VECTOR_STORE_PATH = "data/vector_store"
 
-embedding_model = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
+# Load embedding model only when required.
+embedding_model = None
+
+
+def get_embedding_model():
+    """Load and return the embedding model when needed."""
+
+    global embedding_model
+
+    if embedding_model is None:
+        embedding_model = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+
+    return embedding_model
 
 
 def load_vector_store():
@@ -16,7 +28,7 @@ def load_vector_store():
 
     vector_store = FAISS.load_local(
         VECTOR_STORE_PATH,
-        embedding_model,
+        get_embedding_model(),
         allow_dangerous_deserialization=True
     )
 
