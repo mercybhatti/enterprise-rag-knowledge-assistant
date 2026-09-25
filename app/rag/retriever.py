@@ -1,12 +1,11 @@
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 
 from app.rag.reranker import rerank_documents
 
 
 VECTOR_STORE_PATH = "data/vector_store"
 
-# Load embedding model only when required.
+# Load embedding model only when it is actually required.
 embedding_model = None
 
 
@@ -16,6 +15,8 @@ def get_embedding_model():
     global embedding_model
 
     if embedding_model is None:
+        from langchain_huggingface import HuggingFaceEmbeddings
+
         embedding_model = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )

@@ -1,8 +1,6 @@
-from sentence_transformers import CrossEncoder
+# Do not import CrossEncoder at application startup.
+# It is loaded only when reranking is actually required.
 
-
-# Load the reranker model only when it is actually required.
-# This avoids loading the model during application startup.
 reranker_model = None
 
 
@@ -12,6 +10,8 @@ def get_reranker_model():
     global reranker_model
 
     if reranker_model is None:
+        from sentence_transformers import CrossEncoder
+
         reranker_model = CrossEncoder(
             "cross-encoder/ms-marco-MiniLM-L-6-v2"
         )
