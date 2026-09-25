@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 
 from app.rag.document_loader import load_pdf
 from app.rag.text_splitter import split_documents
@@ -9,9 +8,22 @@ from app.rag.text_splitter import split_documents
 
 VECTOR_STORE_PATH = Path("data/vector_store")
 
-embedding_model = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
+embedding_model = None
+
+
+def get_embedding_model():
+    """Load and return the embedding model when needed."""
+
+    global embedding_model
+
+    if embedding_model is None:
+        from langchain_huggingface import HuggingFaceEmbeddings
+
+        embedding_model = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+
+    return embedding_model
 
 
 def create_vector_store(chunks):
@@ -24,7 +36,7 @@ def create_vector_store(chunks):
 
     vector_store = FAISS.from_documents(
         chunks,
-        embedding_model
+        get_embedding_model()
     )
 
     return vector_store
@@ -35,7 +47,7 @@ def load_vector_store():
 
     vector_store = FAISS.load_local(
         str(VECTOR_STORE_PATH),
-        embedding_model,
+        get_embedding_model(),
         allow_dangerous_deserialization=True
     )
 
