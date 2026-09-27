@@ -46,7 +46,10 @@ API_URL = "http://127.0.0.1:8000"
 # AUTHENTICATION COOKIE
 # ============================================================
 
-cookie_controller = CookieController()
+cookie_controller = CookieController(
+    key="knowledge_ai_cookie_controller"
+)
+
 AUTH_COOKIE_NAME = "knowledge_ai_session"
 
 # ============================================================
@@ -906,7 +909,7 @@ section[data-testid="stSidebar"]
 div[data-testid="stSidebarContent"] {
 
     padding:
-        8px 18px 14px 18px !important;
+        0 18px 14px 18px !important;
 }
 
 
@@ -924,7 +927,25 @@ div[data-testid="stMarkdownContainer"] p {
         3px !important;
 
     line-height:
-        1.4 !important;
+        1.25 !important;
+}
+
+.sidebar-brand {
+
+    color:
+        #f1f5f9;
+
+    font-size:
+        20px;
+
+    font-weight:
+        750;
+
+    line-height:
+        1.2;
+
+    margin:
+        0 0 16px 0 !important;
 }
 
 
@@ -959,10 +980,10 @@ div[data-testid="stCaptionContainer"] p {
 section[data-testid="stSidebar"] button {
 
     min-height:
-        36px !important;
+        40px !important;
 
     height:
-        36px !important;
+        40px !important;
 
     border-radius:
         8px !important;
@@ -984,7 +1005,7 @@ section[data-testid="stSidebar"] button {
         600 !important;
 
     padding:
-        5px 11px !important;
+        6px 12px !important;
 
     margin-bottom:
         4px !important;
@@ -1398,9 +1419,44 @@ div[data-testid="stCaptionContainer"] p {
 /* Keep Streamlit header for sidebar toggle */
 
 header[data-testid="stHeader"] {
-    background: transparent !important;
-    border-bottom: none !important;
-    box-shadow: none !important;
+
+    background:
+        transparent !important;
+
+    border-bottom:
+        none !important;
+
+    box-shadow:
+        none !important;
+}
+
+/* Sidebar header: Knowledge AI + collapse button */
+
+section[data-testid="stSidebar"]
+div[data-testid="stSidebarHeader"]::before {
+    content: "🧠 Knowledge AI";
+
+    color: #f1f5f9;
+    font-size: 20px;
+    font-weight: 750;
+    line-height: 1.2;
+
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* Keep the native collapse button in the same header row */
+
+section[data-testid="stSidebar"]
+div[data-testid="stSidebarHeader"]
+button[data-testid="stSidebarCollapseButton"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    position: relative !important;
+
+    z-index: 99999 !important;
 }
 
 
@@ -1479,8 +1535,12 @@ div[data-testid="stBottom"] {
    ============================================================ */
 
 div[data-testid="stFileUploader"] {
-    padding: 8px 12px 14px 12px !important;
-    border-radius: 10px !important;
+
+    padding:
+        8px 0 14px 0 !important;
+
+    border-radius:
+        10px !important;
 }
 
 div[data-testid="stFileUploader"] section {
@@ -1490,6 +1550,19 @@ div[data-testid="stFileUploader"] section {
 div[data-testid="stFileUploader"] button {
     min-height: 38px !important;
     padding: 0 14px !important;
+}
+
+section[data-testid="stSidebar"]
+div[data-testid="stMarkdownContainer"]
+.sidebar-brand strong {
+
+    font-size: 20px !important;
+    font-weight: 750 !important;
+}
+
+section[data-testid="stSidebar"]
+.sidebar-brand {
+    display: none !important;
 }
 
 </style>
@@ -1512,7 +1585,7 @@ if not st.session_state.authenticated:
     # the browser component to provide existing cookies.
     cookie_controller.getAll()
 
-    time.sleep(0.3)
+    time.sleep(1)
 
     session_token = cookie_controller.get(
         AUTH_COOKIE_NAME
@@ -1868,11 +1941,12 @@ with st.sidebar:
     # --------------------------------------------------------
 
     st.markdown(
-        "🧠  **Knowledge AI**"
-    )
-
-    st.caption(
-        "PRIVATE AI WORKSPACE"
+        """
+        <div class="sidebar-brand">
+            🧠 <strong>Knowledge AI</strong>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     # --------------------------------------------------------
@@ -2152,7 +2226,7 @@ with st.sidebar:
             AUTH_COOKIE_NAME
         )
 
-        time.sleep(0.3)
+        time.sleep(1)
 
         st.session_state.authenticated = False
         st.session_state.user = None
@@ -2169,22 +2243,6 @@ with st.sidebar:
 header_left, header_right = st.columns(
     [4, 1]
 )
-
-
-with header_left:
-
-    st.markdown(
-        """
-<div class="workspace-header">
-Knowledge Workspace
-</div>
-
-<div class="workspace-subtitle">
-Your private AI knowledge assistant
-</div>
-""",
-        unsafe_allow_html=True,
-    )
 
 
 with header_right:
