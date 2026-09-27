@@ -40,7 +40,7 @@ st.set_page_config(
 # CONFIG
 # ============================================================
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = "https://enterprise-rag-knowledge-assistant-d7u8.onrender.com"
 
 # ============================================================
 # AUTHENTICATION COOKIE
