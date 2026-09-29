@@ -46,9 +46,27 @@ API_URL = "https://enterprise-rag-knowledge-assistant-d7u8.onrender.com"
 # AUTHENTICATION COOKIE
 # ============================================================
 
+COOKIE_CONTROLLER_KEY = "knowledge_ai_cookie_controller"
+
 cookie_controller = CookieController(
-    key="knowledge_ai_cookie_controller"
+    key=COOKIE_CONTROLLER_KEY
 )
+
+# The cookie component can return None during its first
+# browser initialization. Clear the invalid session-state
+# value and allow Streamlit to initialize the component again.
+
+if cookie_controller.getAll() is None:
+
+    st.session_state.pop(
+        COOKIE_CONTROLLER_KEY,
+        None,
+    )
+
+    time.sleep(1)
+
+    st.rerun()
+
 
 AUTH_COOKIE_NAME = "knowledge_ai_session"
 
@@ -1752,6 +1770,7 @@ Sign in to continue to your knowledge workspace.
                                 session_token = create_session_token(
                                     result["user"]["id"]
                                     )
+
 
                                 cookie_controller.set(
                                     AUTH_COOKIE_NAME,
