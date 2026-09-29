@@ -1,5 +1,6 @@
 import os
 import sys
+import importlib
 
 PROJECT_ROOT = os.path.dirname(
     os.path.abspath(__file__)
@@ -8,4 +9,4 @@ PROJECT_ROOT = os.path.dirname(
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from app import ui
+importlib.import_module("app.ui")

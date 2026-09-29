@@ -2127,17 +2127,18 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    conversations = get_user_conversations(
-        user["id"]
-    )
+    if user is not None:
 
-    if conversations:
+        conversations = get_user_conversations(
+            user["id"]
+        )
 
-        for conversation in conversations:
+        if conversations:
 
-            conversation_id = conversation["id"]
+            for conversation in conversations:
 
-            title = conversation["title"]
+                conversation_id = conversation["id"]
+                title = conversation["title"]
 
             if len(title) > 28:
 
@@ -2225,15 +2226,17 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown("---")
+    if user is not None:
 
-    st.markdown(
-        f"**👤 {user['name']}**"
-    )
+        st.markdown("---")
 
-    st.caption(
-        "Signed in"
-    )
+        st.markdown(
+            f"**👤 {user['name']}**"
+        )
+
+        st.caption(
+            "Signed in"
+        )
 
     # --------------------------------------------------------
     # SIGN OUT
