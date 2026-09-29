@@ -1583,11 +1583,14 @@ if not st.session_state.authenticated:
 
     # Initialize the cookie controller and allow
     # the browser component to provide existing cookies.
-    cookie_controller.getAll()
+    browser_cookies = cookie_controller.getAll()
 
     time.sleep(1)
 
-    session_token = cookie_controller.get(
+    if not isinstance(browser_cookies, dict):
+        browser_cookies = {}
+
+    session_token = browser_cookies.get(
         AUTH_COOKIE_NAME
     )
 
