@@ -52,20 +52,20 @@ cookie_controller = CookieController(
     key=COOKIE_CONTROLLER_KEY
 )
 
-# The cookie component can return None during its first
-# browser initialization. Clear the invalid session-state
-# value and allow Streamlit to initialize the component again.
+# The cookie component needs a moment to initialize
+# after a fresh browser load.
 
-if cookie_controller.getAll() is None:
+browser_cookies = cookie_controller.getAll()
 
-    st.session_state.pop(
-        COOKIE_CONTROLLER_KEY,
-        None,
-    )
+if browser_cookies is None:
 
     time.sleep(1)
 
-    st.rerun()
+    browser_cookies = cookie_controller.getAll()
+
+if not isinstance(browser_cookies, dict):
+
+    browser_cookies = {}
 
 
 AUTH_COOKIE_NAME = "knowledge_ai_session"
