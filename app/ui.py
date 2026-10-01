@@ -1582,11 +1582,14 @@ section[data-testid="stSidebar"]
 
 if not st.session_state.authenticated:
 
-    browser_cookies = st.context.cookies
-
-    session_token = browser_cookies.get(
+    session_token = st.context.cookies.get(
         AUTH_COOKIE_NAME
     )
+
+    if not session_token:
+        session_token = cookie_controller.get(
+            AUTH_COOKIE_NAME
+        )
 
     user_id = verify_session_token(
         session_token
@@ -1604,10 +1607,6 @@ if not st.session_state.authenticated:
             st.session_state.user = restored_user
             st.session_state.conversation_id = None
             st.session_state.messages = []
-            st.rerun()
-
-
-
     # ========================================================
     # SINGLE OUTER BOX
     # ========================================================
