@@ -52,22 +52,6 @@ cookie_controller = CookieController(
     key=COOKIE_CONTROLLER_KEY
 )
 
-# The cookie component needs a moment to initialize
-# after a fresh browser load.
-
-browser_cookies = cookie_controller.getAll()
-
-if browser_cookies is None:
-
-    time.sleep(1)
-
-    browser_cookies = cookie_controller.getAll()
-
-if not isinstance(browser_cookies, dict):
-
-    browser_cookies = {}
-
-
 AUTH_COOKIE_NAME = "knowledge_ai_session"
 # ============================================================
 # AUTHENTICATION SESSION HELPERS
@@ -1598,6 +1582,8 @@ section[data-testid="stSidebar"]
 
 if not st.session_state.authenticated:
 
+    browser_cookies = st.context.cookies
+
     session_token = browser_cookies.get(
         AUTH_COOKIE_NAME
     )
@@ -1615,16 +1601,10 @@ if not st.session_state.authenticated:
         if restored_user is not None:
 
             st.session_state.authenticated = True
-
-            st.session_state.user = (
-                restored_user
-            )
-
-            st.session_state.conversation_id = (
-                None
-            )
-
+            st.session_state.user = restored_user
+            st.session_state.conversation_id = None
             st.session_state.messages = []
+            st.rerun()
 
 
 
