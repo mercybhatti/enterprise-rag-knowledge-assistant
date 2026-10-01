@@ -69,7 +69,6 @@ if not isinstance(browser_cookies, dict):
 
 
 AUTH_COOKIE_NAME = "knowledge_ai_session"
-
 # ============================================================
 # AUTHENTICATION SESSION HELPERS
 # ============================================================
@@ -1599,15 +1598,6 @@ section[data-testid="stSidebar"]
 
 if not st.session_state.authenticated:
 
-    # Initialize the cookie controller and allow
-    # the browser component to provide existing cookies.
-    browser_cookies = cookie_controller.getAll()
-
-    time.sleep(1)
-
-    if not isinstance(browser_cookies, dict):
-        browser_cookies = {}
-
     session_token = browser_cookies.get(
         AUTH_COOKIE_NAME
     )
@@ -1636,7 +1626,7 @@ if not st.session_state.authenticated:
 
             st.session_state.messages = []
 
-            st.rerun()
+
 
     # ========================================================
     # SINGLE OUTER BOX
