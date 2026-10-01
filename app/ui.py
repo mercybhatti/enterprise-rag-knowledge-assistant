@@ -1582,14 +1582,9 @@ section[data-testid="stSidebar"]
 
 if not st.session_state.authenticated:
 
-    session_token = st.context.cookies.get(
+    session_token = cookie_controller.get(
         AUTH_COOKIE_NAME
     )
-
-    if not session_token:
-        session_token = cookie_controller.get(
-            AUTH_COOKIE_NAME
-        )
 
     user_id = verify_session_token(
         session_token
